@@ -1,0 +1,9 @@
+# Model weights and checkpoints
+model/
+
+#datasets
+datasets/
+
+#logs
+log/
+FIO_mem/
