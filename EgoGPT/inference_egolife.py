@@ -28,8 +28,8 @@ from prompt_for_caption import query_for_meta_final
 # ---------------------------------------------------------------------------
 # Paths for EgoLife
 # ---------------------------------------------------------------------------
-VIDEO_BASE = "/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/datasets/EgoLife/A5_KATRINA"
-AUDIO_BASE = "/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/datasets/EgoLife_audio/A5_KATRINA"
+VIDEO_BASE = "/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/datasets/EgoLife/A6_SHURE"
+AUDIO_BASE = "/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/datasets/EgoLife_audio/A6_SHURE"
 DEFAULT_MODEL_PATH = "/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/model/7b"
 
 all_results = []  # stores all caption results
@@ -41,7 +41,7 @@ all_results = []  # stores all caption results
 def setup(rank, world_size):
     """Set up the (single-process) distributed environment."""
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12356" # chnaged from 12355 to 12356 to avoid port conflict
+    os.environ["MASTER_PORT"] = "12355" # chnaged from 12355 to 12356 to avoid port conflict
     if dist.is_initialized():
         return
     dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -245,13 +245,13 @@ if __name__ == "__main__":
     parser.add_argument("--query", type=str, default=query_for_meta_final)
     parser.add_argument("--video_base", type=str, default=VIDEO_BASE)
     parser.add_argument("--audio_base", type=str, default=AUDIO_BASE)
-    parser.add_argument("--output", type=str, default="/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/generated_caption/Katrina_meta.json",
+    parser.add_argument("--output", type=str, default="/home/rs/24CS92R01/EGOLIFE/EgoLife_Research/generated_caption/A6_SHURE_meta.json",
                         help="Change the name for each run to avoid overwriting")
-    parser.add_argument("--experiment_name", type=str, default="meta_katrina")
+    parser.add_argument("--experiment_name", type=str, default="meta_shure")
     args = parser.parse_args()
 
     logger = start_experiment(args.experiment_name)
-
+    
     # Load model ONCE
     tokenizer, model, max_length, device = load_model_once(args.pretrained_path)
 
