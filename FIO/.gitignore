@@ -1,0 +1,9 @@
+# t-sne
+t_sne/
+
+# run outputs
+log/
+experiments/
+results/
+__pycache__/
+result.txt
