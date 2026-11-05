@@ -1,15 +1,6 @@
-"""Experimental learnable memory components (AdaImprint)."""
+"""AdaImprint: a learnable retention rule for the FIO episodic memory.
 
-from .ada_imprint import (
-    AdaImprintController,
-    AdaImprintConfig,
-    RunningFeatureNorm,
-    self_supervised_memory_loss,
-)
-
-__all__ = [
-    "AdaImprintController",
-    "AdaImprintConfig",
-    "RunningFeatureNorm",
-    "self_supervised_memory_loss",
-]
+Library code lives in ``learnable.adaimprint``; command-line entry points in
+``learnable.scripts`` (run them from the repository root with ``python -m``).
+See ``learnable/README.md``.
+"""

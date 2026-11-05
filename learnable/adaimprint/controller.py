@@ -1,17 +1,15 @@
-"""Small, isolated building blocks for the AdaImprint experiment.
+"""Recurrent controller of AdaImprint (step 5) and streaming feature normalisation.
 
-This module deliberately does not modify or import the production FIO build
-pipeline. The caller supplies normalized stream features and prediction
-logits, which keeps the controller independent of a particular embedding or
-storage backend.
+Independent of FIO and of any embedding or storage backend: the caller passes
+normalised features and receives the importance correction delta_t and the
+policy logits.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
-import torch.nn.functional as F
 
 
 @dataclass(frozen=True)
@@ -21,7 +19,7 @@ class AdaImprintConfig:
     input_dim: int
     hidden_dim: int = 128
     max_log_importance_correction: float = 2.0
-    num_policy_actions: int = 4  # write, merge, update, discard
+    num_policy_actions: int = 3  # write, merge, update (discard is the gate)
 
 
 class RunningFeatureNorm(nn.Module):
@@ -97,8 +95,7 @@ class AdaImprintController(nn.Module):
     def forward(
         self,
         features: Tensor,
-        state: Optional[tuple] = None,
-        base_importance: Optional[Tensor] = None,
+        state: Optional[Tuple[Tensor, Tensor]] = None,
     ) -> Dict[str, Tensor]:
         """Process one timestep; features have shape [batch, input_dim]."""
         if features.ndim == 1:
@@ -113,56 +110,8 @@ class AdaImprintController(nn.Module):
         correction = self.config.max_log_importance_correction * torch.tanh(
             self.correction_head(joint).squeeze(-1)
         )
-        result = {
+        return {
             "log_importance_correction": correction,
             "policy_logits": self.policy_head(joint),
             "state": (h, c),
         }
-        if base_importance is not None:
-            base = torch.as_tensor(base_importance, device=features.device,
-                                   dtype=features.dtype).reshape(-1)
-            result["adaptive_importance"] = torch.exp(
-                torch.log(base.clamp_min(1e-8)) + correction
-            )
-        return result
-
-
-def self_supervised_memory_loss(
-    next_logits: Tensor,
-    next_targets: Tensor,
-    past_logits: Tensor,
-    past_targets: Tensor,
-    memory_cost: Tensor,
-    redundancy_penalty: Tensor,
-    *,
-    beta: float = 0.01,
-    gamma: float = 0.1,
-    past_weight: float = 1.0,
-) -> Dict[str, Tensor]:
-    """Combine next-event prediction and sampled-past reconstruction losses.
-
-    ``past_logits`` and ``past_targets`` represent randomly sampled past
-    interactions that remain represented by compressed memory. Including this
-    term reduces the incentive to retain only routine, easy-to-predict events.
-    Cost and redundancy are caller-computed scalar tensors, kept explicit so
-    the experiment can define its own budget units and merge semantics.
-    """
-    if next_logits.shape[0] != next_targets.shape[0]:
-        raise ValueError("next logits and targets must have matching batches")
-    if past_logits.shape[0] != past_targets.shape[0]:
-        raise ValueError("past logits and targets must have matching batches")
-    next_loss = F.cross_entropy(next_logits, next_targets.long())
-    past_loss = F.cross_entropy(past_logits, past_targets.long())
-    memory_cost = torch.as_tensor(memory_cost, device=next_loss.device,
-                                  dtype=next_loss.dtype).mean()
-    redundancy_penalty = torch.as_tensor(
-        redundancy_penalty, device=next_loss.device, dtype=next_loss.dtype
-    ).mean()
-    total = next_loss + past_weight * past_loss + beta * memory_cost + gamma * redundancy_penalty
-    return {
-        "loss": total,
-        "next_prediction": next_loss,
-        "past_reconstruction": past_loss,
-        "memory_cost": memory_cost,
-        "redundancy": redundancy_penalty,
-    }
